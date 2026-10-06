@@ -114,7 +114,7 @@ axs[2].axis("off")
 # de diffusion, on va les représenter graphiquement.
 
 # %%
-%matplotlib widget
+# %matplotlib widget
 from dipy.io import read_bvals_bvecs
 from dipy.core.gradients import gradient_table
 
@@ -125,4 +125,40 @@ ax = fig.add_subplot(111, projection="3d")
 ax.scatter3D(*(bvecs[bvals > 0]).T)
 ax.set_aspect("equal")
 ax.axis("off")
+
+
+# %% [markdown]
+# ### Contraste dans les images en fonction de la direction d'encodage
+# Pour se rendre compte de l'effet de la pondération en diffusion, on va ouvrir
+# 3 des images qui correspondent respectivement à un encodage en `x` 
+# (gauche-droite), en `y` (antero-posterieur) et en `z` (supérieur-inférieur).
+# On pourrait chercher dans la table de gradients 3 directions qui 
+# correspondent à ce qu'on vient de décrire ; comme il y a beaucoup de 
+# directions on va essayer de faire cela de manière automatique.
+
+
+# %%
+import numpy as np
+
+index_x = np.argmax(np.abs(bvecs[:, 0]))
+index_y = np.argmax(np.abs(bvecs[:, 1]))
+index_z = np.argmax(np.abs(bvecs[:, 2]))
+print(index_x, index_y, index_z)
+
+fig, axs = plt.subplots(1, 3)
+
+img = img.get_fdata()
+
+axs[0].imshow(img[:, :, dim_z // 2, index_x])
+axs[0].set_title("Pondération en x")
+axs[0].axis("off")
+
+axs[1].imshow(img[:, :, dim_z // 2, index_y])
+axs[1].set_title("Pondération en y")
+axs[1].axis("off")
+
+axs[2].imshow(img[:, :, dim_z // 2, index_z])
+axs[2].set_title("Pondération en z")
+axs[2].axis("off")
+
 plt.show()
