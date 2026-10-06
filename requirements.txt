@@ -2,3 +2,5 @@ jupytext
 dipy
 matplotlib
 numpy
+nibabel
+ipympl
