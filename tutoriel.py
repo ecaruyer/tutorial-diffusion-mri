@@ -4,6 +4,12 @@
 #     text_representation:
 #       extension: .py
 #       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.19.6
+#   kernelspec:
+#     display_name: base
+#     language: python
+#     name: base
 # ---
 
 # %% [markdown]
@@ -12,7 +18,7 @@
 # en diffusion et d'estimer la carte de tenseur de diffusion. À partir de cette
 # carte, on peut estimer différentes mesures, comme la diffusivité moyenne ou
 # l'anisotropie fractionnelle.
-# 
+#
 # ## Organisation des données en IRM de diffusion
 # Dans la plupart des cas, les données pondérées en diffusion seront
 # disponibles à la sortie de la machine au format DICOM. Étant donné que chaque
@@ -122,9 +128,9 @@ bvals, bvecs = read_bvals_bvecs(f_bval, f_bvec)
 
 fig = plt.figure(figsize=(6, 6))
 ax = fig.add_subplot(111, projection="3d")
-ax.scatter3D(*(bvecs[bvals > 0]).T)
+ax.scatter3D(*(bvecs[bvals > 0]).T, c="gray")
 ax.set_aspect("equal")
-ax.axis("off")
+ax.axis("off");
 
 
 # %% [markdown]
@@ -149,16 +155,69 @@ fig, axs = plt.subplots(1, 3)
 
 img = img.get_fdata()
 
-axs[0].imshow(img[:, :, dim_z // 2, index_x])
+axs[0].imshow(img[:, :, dim_z // 2, index_x], cmap="gray")
 axs[0].set_title("Pondération en x")
 axs[0].axis("off")
 
-axs[1].imshow(img[:, :, dim_z // 2, index_y])
+axs[1].imshow(img[:, :, dim_z // 2, index_y], cmap="gray")
 axs[1].set_title("Pondération en y")
 axs[1].axis("off")
 
-axs[2].imshow(img[:, :, dim_z // 2, index_z])
+axs[2].imshow(img[:, :, dim_z // 2, index_z], cmap="gray")
 axs[2].set_title("Pondération en z")
-axs[2].axis("off")
+axs[2].axis("off");
 
-plt.show()
+
+# %% [markdown]
+# ### Estimation des cartes de tenseur de diffusion
+# Le tenseur est lié aux images pondérées en diffusion par une équation ;
+# l'estimation du tenseur consiste à résoudre un problème d'optimisation (ou
+# *fitting* en anglais). Quand on a *a minima* 6 images pondérées en diffusion
+# et une image de référence, cette estimation est mathématiquement possible.
+# Ici, on va utiliser la bibliothèque `dipy` pour faire cette estimation. On 
+# commence par créer un masque du cerveau (pour éviter de faire une estimation 
+# là où il n'y a pas de signal utile).
+
+# %%
+from dipy.segment.mask import median_otsu
+_, mask = median_otsu(img, vol_idx=[0], median_radius=4, numpass=2)
+
+fig = plt.figure()
+plt.imshow(mask[:, :, dim_z // 2], cmap="gray")
+plt.title("Masque du cerveau")
+plt.axis("off")
+
+
+# %% [markdown]
+# On peut maintenant, à l'intérieur de ce masque, estimer le tenseur de
+# diffusion. À partir de ce tenseur, on peut estimer la diffusivité moyen et la
+# fraction d'anisotropie.
+
+# %%
+import dipy.reconst.dti as dti
+from dipy.core.gradients import gradient_table
+
+gtab = gradient_table(bvals, bvecs)
+
+# Define and fit DTI model
+tensor_model = dti.TensorModel(gtab)
+tensor_fit = tensor_model.fit(img, mask=mask)
+
+# Extract FA and MD metrics
+fa = tensor_fit.fa
+md = tensor_fit.md
+
+
+# %%
+fig, axs = plt.subplots(1, 2)
+
+m = axs[0].imshow(md[:, :, dim_z // 2], cmap="gray")
+plt.colorbar(mappable=m, ax=axs[0])
+axs[0].axis("off")
+axs[0].set_title("Diffusivité moyenne [mm²/s]")
+
+m = axs[1].imshow(fa[:, :, dim_z // 2], cmap="gray")
+plt.colorbar(mappable=m, ax=axs[1])
+axs[1].axis("off")
+axs[1].set_title("Fraction d'anisotropie");
+
